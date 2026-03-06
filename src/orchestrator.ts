@@ -277,19 +277,27 @@ export class Orchestrator {
         error: errorMessage,
       });
 
-      const backoff = calculateBackoff(attempt);
-      const nextRetryAt = new Date(Date.now() + backoff);
-      this.state.retryQueue.set(issue.number, {
-        issue,
-        attempt: attempt + 1,
-        nextRetryAt,
-      });
-      this.emit({
-        type: "retry_scheduled",
-        issueNumber: issue.number,
-        nextRetryAt,
-      });
-      log.info({ backoff, nextRetryAt }, "Retry scheduled");
+      const maxRetries = this.state.config.agent.max_retries;
+      if (attempt >= maxRetries) {
+        log.warn(
+          { attempt, maxRetries },
+          "Max retries exceeded, marking issue as permanently failed"
+        );
+      } else {
+        const backoff = calculateBackoff(attempt);
+        const nextRetryAt = new Date(Date.now() + backoff);
+        this.state.retryQueue.set(issue.number, {
+          issue,
+          attempt: attempt + 1,
+          nextRetryAt,
+        });
+        this.emit({
+          type: "retry_scheduled",
+          issueNumber: issue.number,
+          nextRetryAt,
+        });
+        log.info({ backoff, nextRetryAt }, "Retry scheduled");
+      }
     }
   }
 

@@ -32,6 +32,7 @@ export interface WorkflowConfig {
   agent: {
     timeout_seconds: number;
     max_continuation_turns: number;
+    max_retries: number;
   };
   concurrency: {
     max_sessions: number;
