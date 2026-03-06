@@ -110,16 +110,19 @@ export class Orchestrator {
       const issues = await fetchIssues(github.owner, github.repo, github.label);
       this.emit({ type: "poll_completed", issueCount: issues.length });
 
+      // Collect all candidates: retries first, then new issues
+      const candidates: Array<{ issue: Issue; attempt: number }> = [];
+
       // Process retry queue
       for (const [issueNumber, entry] of this.state.retryQueue) {
         if (shouldRetry(entry)) {
           this.state.retryQueue.delete(issueNumber);
           log.info({ issue: issueNumber }, "Retrying issue");
-          this.dispatch(entry.issue, entry.attempt);
+          candidates.push({ issue: entry.issue, attempt: entry.attempt });
         }
       }
 
-      // Filter and dispatch new issues
+      // Filter new issues
       const eligible = issues.filter((issue) => {
         if (this.state.running.has(issue.number)) return false;
         if (this.state.retryQueue.has(issue.number)) return false;
@@ -127,15 +130,24 @@ export class Orchestrator {
           log.debug({ issue: issue.number }, "Issue is blocked, skipping");
           return false;
         }
+        // Skip issues already in candidates (from retry)
+        if (candidates.some((c) => c.issue.number === issue.number)) return false;
         return true;
       });
 
+      for (const issue of eligible) {
+        candidates.push({ issue, attempt: 1 });
+      }
+
+      // Apply concurrency limit to all candidates
       const availableSlots =
         this.state.config.concurrency.max_sessions - this.state.running.size;
-      const toDispatch = eligible.slice(0, Math.max(0, availableSlots));
+      const toDispatch = candidates.slice(0, Math.max(0, availableSlots));
 
-      for (const issue of toDispatch) {
-        this.dispatch(issue, 1);
+      for (const { issue, attempt } of toDispatch) {
+        this.dispatch(issue, attempt).catch((err) =>
+          log.error({ err, issue: issue.number }, "Dispatch failed")
+        );
       }
     } catch (err) {
       log.error({ err }, "Poll cycle error");
@@ -189,7 +201,10 @@ export class Orchestrator {
 
     try {
       this.updateRunStatus(issue.number, "preparing_workspace");
-      const repoUrl = `https://github.com/${config.github.owner}/${config.github.repo}.git`;
+      const token = process.env.GITHUB_TOKEN;
+      const repoUrl = token
+        ? `https://x-access-token:${token}@github.com/${config.github.owner}/${config.github.repo}.git`
+        : `https://github.com/${config.github.owner}/${config.github.repo}.git`;
       const wsPath = await createWorkspace(
         config.workspace.root,
         issue.number,
@@ -231,7 +246,9 @@ export class Orchestrator {
 
             setTimeout(() => {
               this.state.running.delete(issue.number);
-              this.dispatch(issue, attempt, turn + 1, result.sessionId);
+              this.dispatch(issue, attempt, turn + 1, result.sessionId).catch(
+                (err) => log.error({ err }, "Continuation dispatch failed")
+              );
             }, CONTINUATION_DELAY_MS);
             return;
           }

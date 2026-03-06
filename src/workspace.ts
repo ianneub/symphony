@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import { existsSync, rmSync, mkdirSync } from "fs";
 import { resolve, relative } from "path";
 import { logger } from "./logger.js";
@@ -38,7 +38,11 @@ export async function createWorkspace(
   if (existsSync(wsPath)) {
     log.info("Workspace already exists, reusing");
     try {
-      execSync(`git fetch origin ${defaultBranch} && git rebase origin/${defaultBranch}`, {
+      execFileSync("git", ["fetch", "origin", defaultBranch], {
+        cwd: wsPath,
+        stdio: "pipe",
+      });
+      execFileSync("git", ["rebase", `origin/${defaultBranch}`], {
         cwd: wsPath,
         stdio: "pipe",
       });
@@ -49,10 +53,10 @@ export async function createWorkspace(
   }
 
   log.info("Creating workspace");
-  execSync(`git clone --depth=1 ${repoUrl} ${wsPath}`, { stdio: "pipe" });
+  execFileSync("git", ["clone", "--depth=1", repoUrl, wsPath], { stdio: "pipe" });
 
   const branchName = `symphony/issue-${issueNumber}`;
-  execSync(`git checkout -b ${branchName}`, { cwd: wsPath, stdio: "pipe" });
+  execFileSync("git", ["checkout", "-b", branchName], { cwd: wsPath, stdio: "pipe" });
 
   log.info({ branch: branchName }, "Workspace created");
   return wsPath;
