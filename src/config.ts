@@ -48,6 +48,16 @@ export function loadWorkflow(filePath: string): WorkflowLoadResult {
       max_sessions:
         data.concurrency?.max_sessions ?? DEFAULTS.concurrency.max_sessions,
     },
+    hooks: data.hooks
+      ? {
+          pre_run: Array.isArray(data.hooks.pre_run)
+            ? data.hooks.pre_run
+            : undefined,
+          post_run: Array.isArray(data.hooks.post_run)
+            ? data.hooks.post_run
+            : undefined,
+        }
+      : undefined,
   };
 
   const stat = statSync(filePath);

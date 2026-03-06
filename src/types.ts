@@ -36,6 +36,10 @@ export interface WorkflowConfig {
   concurrency: {
     max_sessions: number;
   };
+  hooks?: {
+    pre_run?: string[];
+    post_run?: string[];
+  };
 }
 
 export interface RunAttempt {
