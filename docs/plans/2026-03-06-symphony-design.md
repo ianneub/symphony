@@ -10,7 +10,7 @@ Symphony is a long-running TypeScript service that polls GitHub Issues, creates 
 ## Stack
 
 - **Language:** TypeScript (Node.js)
-- **Agent:** Claude Code SDK (`@anthropic-ai/claude-code-sdk`)
+- **Agent:** Claude Code SDK (`@anthropic-ai/claude-agent-sdk`)
 - **GitHub:** Octokit (REST + GraphQL)
 - **HTTP:** Express
 - **Logging:** Pino (structured JSON)
@@ -202,10 +202,10 @@ When an agent session errors:
 
 ## Agent Integration
 
-Uses `@anthropic-ai/claude-code-sdk`:
+Uses `@anthropic-ai/claude-agent-sdk`:
 
 ```typescript
-import { query } from "@anthropic-ai/claude-code-sdk";
+import { query } from "@anthropic-ai/claude-agent-sdk";
 
 async function runAgent(workspace: string, prompt: string, options: AgentOptions) {
   const events = query({
