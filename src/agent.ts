@@ -1,5 +1,5 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import type { OrchestratorEvent } from "./types.js";
+import type { OrchestratorEvent, TokenUsage } from "./types.js";
 import { logger } from "./logger.js";
 
 export interface AgentOptions {
@@ -23,6 +23,7 @@ export interface AgentResult {
   sessionId?: string;
   success: boolean;
   error?: string;
+  tokenUsage: TokenUsage;
 }
 
 export async function runAgent(
@@ -42,6 +43,7 @@ export async function runAgent(
   }, timeoutSeconds * 1000);
 
   let sessionId: string | undefined;
+  const tokenUsage: TokenUsage = { input_tokens: 0, output_tokens: 0, total_tokens: 0 };
 
   try {
     const response = query({
@@ -64,19 +66,32 @@ export async function runAgent(
         log.info({ sessionId }, "Agent session started");
       }
 
+      // Accumulate token usage from SDK events that carry usage data
+      const msgAny = message as any;
+      if (msgAny.usage) {
+        const usage = msgAny.usage;
+        if (usage.input_tokens != null) {
+          tokenUsage.input_tokens += usage.input_tokens;
+        }
+        if (usage.output_tokens != null) {
+          tokenUsage.output_tokens += usage.output_tokens;
+        }
+        tokenUsage.total_tokens = tokenUsage.input_tokens + tokenUsage.output_tokens;
+      }
+
       if ("result" in message) {
         log.debug({ result: (message as any).result }, "Agent result");
       }
     }
 
     clearTimeout(timeout);
-    log.info({ sessionId }, "Agent session completed");
-    return { sessionId, success: true };
+    log.info({ sessionId, tokenUsage }, "Agent session completed");
+    return { sessionId, success: true, tokenUsage };
   } catch (err) {
     clearTimeout(timeout);
     const errorMessage =
       err instanceof Error ? err.message : String(err);
     log.error({ err: errorMessage, sessionId }, "Agent session failed");
-    return { sessionId, success: false, error: errorMessage };
+    return { sessionId, success: false, error: errorMessage, tokenUsage };
   }
 }

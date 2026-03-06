@@ -48,6 +48,18 @@ export function loadWorkflow(filePath: string): WorkflowLoadResult {
       max_sessions:
         data.concurrency?.max_sessions ?? DEFAULTS.concurrency.max_sessions,
     },
+    ...(data.token_budget
+      ? {
+          token_budget: {
+            ...(data.token_budget.max_tokens_per_issue != null
+              ? { max_tokens_per_issue: data.token_budget.max_tokens_per_issue }
+              : {}),
+            ...(data.token_budget.max_tokens_global != null
+              ? { max_tokens_global: data.token_budget.max_tokens_global }
+              : {}),
+          },
+        }
+      : {}),
   };
 
   const stat = statSync(filePath);

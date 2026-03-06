@@ -31,7 +31,11 @@ vi.mock("../src/workspace.js", () => ({
 
 vi.mock("../src/agent.js", () => ({
   runAgent: vi.fn(() =>
-    Promise.resolve({ sessionId: "session-1", success: true })
+    Promise.resolve({
+      sessionId: "session-1",
+      success: true,
+      tokenUsage: { input_tokens: 100, output_tokens: 50, total_tokens: 150 },
+    })
   ),
 }));
 
@@ -120,6 +124,7 @@ describe("Orchestrator completed issue skipping", () => {
       sessionId: "session-1",
       success: false,
       error: "something broke",
+      tokenUsage: { input_tokens: 50, output_tokens: 20, total_tokens: 70 },
     });
 
     const orch = new Orchestrator("fake-workflow.md");

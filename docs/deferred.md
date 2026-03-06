@@ -10,13 +10,17 @@ Features intentionally excluded from v1. Each section describes the feature, whe
 
 **Spec reference:** `hooks` front matter key with `pre_run` and `post_run` commands.
 
-## Token Usage Rate Limiting / Budget Caps
+## ~~Token Usage Rate Limiting / Budget Caps~~ (Implemented)
 
-**What:** Track cumulative token usage across sessions and enforce per-issue or global budgets. Stop dispatching when budget is exceeded.
+**Status:** Implemented in issue #8.
 
-**Where it plugs in:** `agent.ts` — accumulate token counts from SDK events. `orchestrator.ts` — check budget before dispatch. `types.ts` — add `token_usage` to `RunAttempt`. `api.ts` — expose aggregate usage in state endpoint.
-
-**Spec reference:** Aggregate token usage tracking in orchestrator state, rate limit checks during dispatch.
+**What was done:**
+- Added `TokenUsage` type and `token_usage` field to `RunAttempt` and `CompletedRun` in `types.ts`
+- Added optional `token_budget` config (`max_tokens_per_issue`, `max_tokens_global`) to `WorkflowConfig`
+- Agent SDK token usage events are accumulated in `agent.ts` and returned in `AgentResult`
+- Budget checks (per-issue and global) run before dispatch in `orchestrator.ts`; a `budget_exceeded` event is emitted when limits are hit
+- Aggregate token usage (global and per-issue) exposed in `/api/v1/state` endpoint
+- Dashboard displays token usage summary and per-run token counts
 
 ## `$VAR` Environment Indirection in Config
 
