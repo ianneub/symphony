@@ -6,7 +6,7 @@ const DEFAULTS = {
   github: { label: "agent" },
   polling: { interval_seconds: 30 },
   workspace: { root: "./workspaces" },
-  agent: { timeout_seconds: 600, max_continuation_turns: 5 },
+  agent: { timeout_seconds: 600, max_continuation_turns: 5, max_retries: 10 },
   concurrency: { max_sessions: 1 },
 };
 
@@ -43,6 +43,8 @@ export function loadWorkflow(filePath: string): WorkflowLoadResult {
       max_continuation_turns:
         data.agent?.max_continuation_turns ??
         DEFAULTS.agent.max_continuation_turns,
+      max_retries:
+        data.agent?.max_retries ?? DEFAULTS.agent.max_retries,
     },
     concurrency: {
       max_sessions:
