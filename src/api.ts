@@ -158,6 +158,43 @@ function dashboardHtml(): string {
   .card-status.failed { background: rgba(248,81,73,0.15); color: #f85149; }
   .card-status.completed { background: rgba(63,185,80,0.15); color: #3fb950; }
 
+  .token-section {
+    margin-bottom: 32px;
+  }
+  .token-bar {
+    background: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .token-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .token-stat .label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #8b949e;
+  }
+  .token-stat .value {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f0f6fc;
+  }
+  .token-stat .value.warning { color: #d29922; }
+  .token-stat .value.danger { color: #f85149; }
+  .token-divider {
+    width: 1px;
+    height: 32px;
+    background: #21262d;
+  }
+
   .empty-state {
     text-align: center;
     padding: 32px;
@@ -205,6 +242,8 @@ function dashboardHtml(): string {
   </header>
 
   <div id="config-grid" class="config-grid"></div>
+
+  <div id="token-section" class="token-section"></div>
 
   <div class="section">
     <div class="section-header">
@@ -255,6 +294,12 @@ function formatStatus(status) {
   return status.replace(/_/g, ' ');
 }
 
+function fmtTokens(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+  return String(n);
+}
+
 function relTime(dateStr) {
   var d = new Date(dateStr);
   var diff = Math.floor((Date.now() - d.getTime()) / 1000);
@@ -273,6 +318,43 @@ function render(state) {
     '<div class="config-card"><div class="label">Max Sessions</div><div class="value">' + c.concurrency.max_sessions + '</div></div>' +
     '<div class="config-card"><div class="label">Max Turns</div><div class="value">' + c.agent.max_continuation_turns + '</div></div>';
 
+  // Token usage section
+  var tu = state.tokenUsage;
+  if (tu) {
+    var globalBudget = c.token_budget && c.token_budget.max_tokens_global;
+    var globalClass = '';
+    if (globalBudget) {
+      var ratio = tu.global.total_tokens / globalBudget;
+      if (ratio >= 1) globalClass = ' danger';
+      else if (ratio >= 0.8) globalClass = ' warning';
+    }
+    var html = '<div class="section-header"><h2>Token Usage</h2></div><div class="token-bar">' +
+      '<div class="token-stat"><div class="label">Input</div><div class="value">' + fmtTokens(tu.global.input_tokens) + '</div></div>' +
+      '<div class="token-divider"></div>' +
+      '<div class="token-stat"><div class="label">Output</div><div class="value">' + fmtTokens(tu.global.output_tokens) + '</div></div>' +
+      '<div class="token-divider"></div>' +
+      '<div class="token-stat"><div class="label">Total</div><div class="value' + globalClass + '">' + fmtTokens(tu.global.total_tokens) +
+      (globalBudget ? ' / ' + fmtTokens(globalBudget) : '') + '</div></div>';
+    var issueNums = Object.keys(tu.byIssue);
+    if (issueNums.length > 0) {
+      html += '<div class="token-divider"></div>';
+      var perIssueBudget = c.token_budget && c.token_budget.max_tokens_per_issue;
+      issueNums.forEach(function(num) {
+        var iu = tu.byIssue[num];
+        var ic = '';
+        if (perIssueBudget) {
+          var ir = iu.total_tokens / perIssueBudget;
+          if (ir >= 1) ic = ' danger';
+          else if (ir >= 0.8) ic = ' warning';
+        }
+        html += '<div class="token-stat"><div class="label">#' + num + '</div><div class="value' + ic + '">' + fmtTokens(iu.total_tokens) +
+          (perIssueBudget ? ' / ' + fmtTokens(perIssueBudget) : '') + '</div></div>';
+      });
+    }
+    html += '</div>';
+    document.getElementById('token-section').innerHTML = html;
+  }
+
   var running = state.running || [];
   document.getElementById('running-count').textContent = running.length;
   if (running.length === 0) {
@@ -284,7 +366,7 @@ function render(state) {
         '<div class="run-dot ' + sc + '"></div>' +
         '<div class="card-body">' +
           '<div class="card-title">#' + r.issue.number + ' ' + esc(r.issue.title) + '</div>' +
-          '<div class="card-meta">Attempt ' + r.attempt + ' &middot; Turn ' + r.turn + ' &middot; Started ' + relTime(r.started_at) + '</div>' +
+          '<div class="card-meta">Attempt ' + r.attempt + ' &middot; Turn ' + r.turn + ' &middot; Started ' + relTime(r.started_at) + (r.token_usage ? ' &middot; ' + fmtTokens(r.token_usage.total_tokens) + ' tokens' : '') + '</div>' +
         '</div>' +
         '<div class="card-status ' + sc + '">' + formatStatus(r.status) + '</div>' +
       '</div>';
@@ -319,7 +401,7 @@ function render(state) {
         '<div class="run-dot ' + sc + '"></div>' +
         '<div class="card-body">' +
           '<div class="card-title">#' + r.issue.number + ' ' + esc(r.issue.title) + '</div>' +
-          '<div class="card-meta">Attempt ' + r.attempt + ' &middot; Turn ' + r.turn + ' &middot; Finished ' + relTime(r.finished_at) + '</div>' +
+          '<div class="card-meta">Attempt ' + r.attempt + ' &middot; Turn ' + r.turn + ' &middot; Finished ' + relTime(r.finished_at) + (r.token_usage ? ' &middot; ' + fmtTokens(r.token_usage.total_tokens) + ' tokens' : '') + '</div>' +
         '</div>' +
         '<div class="card-status ' + sc + '">' + r.status + '</div>' +
       '</div>';
@@ -383,6 +465,7 @@ export function createApp(orchestrator: Orchestrator): express.Express {
       retryQueue: state.retryQueue,
       completedRuns: state.completedRuns,
       config: state.config,
+      tokenUsage: state.tokenUsage,
     });
   });
 

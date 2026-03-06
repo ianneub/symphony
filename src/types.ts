@@ -1,3 +1,9 @@
+export interface TokenUsage {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+}
+
 export interface Issue {
   id: number;
   number: number;
@@ -36,6 +42,10 @@ export interface WorkflowConfig {
   concurrency: {
     max_sessions: number;
   };
+  token_budget?: {
+    max_tokens_per_issue?: number;
+    max_tokens_global?: number;
+  };
 }
 
 export interface RunAttempt {
@@ -46,6 +56,7 @@ export interface RunAttempt {
   started_at: Date;
   workspace_path: string;
   session_id?: string;
+  token_usage: TokenUsage;
 }
 
 export type RunStatus =
@@ -79,6 +90,7 @@ export interface CompletedRun {
   attempt: number;
   turn: number;
   finished_at: Date;
+  token_usage: TokenUsage;
 }
 
 export type OrchestratorEvent =
@@ -88,4 +100,5 @@ export type OrchestratorEvent =
   | { type: "run_failed"; issueNumber: number; error: string }
   | { type: "retry_scheduled"; issueNumber: number; nextRetryAt: Date }
   | { type: "config_reloaded" }
-  | { type: "poll_completed"; issueCount: number };
+  | { type: "poll_completed"; issueCount: number }
+  | { type: "budget_exceeded"; issueNumber: number; usage: number; limit: number };
