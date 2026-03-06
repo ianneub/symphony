@@ -16,6 +16,24 @@ export interface WorkflowLoadResult {
   lastModified: number;
 }
 
+function assertNonEmptyString(
+  value: unknown,
+  fieldName: string,
+): asserts value is string {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error(`${fieldName} must be a non-empty string`);
+  }
+}
+
+function assertPositiveNumber(
+  value: unknown,
+  fieldName: string,
+): asserts value is number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    throw new Error(`${fieldName} must be a positive number`);
+  }
+}
+
 export function loadWorkflow(filePath: string): WorkflowLoadResult {
   const raw = readFileSync(filePath, "utf-8");
   const { data, content } = matter(raw);
@@ -49,6 +67,27 @@ export function loadWorkflow(filePath: string): WorkflowLoadResult {
         data.concurrency?.max_sessions ?? DEFAULTS.concurrency.max_sessions,
     },
   };
+
+  // Validate string fields
+  assertNonEmptyString(config.github.owner, "github.owner");
+  assertNonEmptyString(config.github.repo, "github.repo");
+  assertNonEmptyString(config.github.label, "github.label");
+  assertNonEmptyString(config.workspace.root, "workspace.root");
+
+  // Validate numeric fields
+  assertPositiveNumber(
+    config.polling.interval_seconds,
+    "polling.interval_seconds",
+  );
+  assertPositiveNumber(config.agent.timeout_seconds, "agent.timeout_seconds");
+  assertPositiveNumber(
+    config.agent.max_continuation_turns,
+    "agent.max_continuation_turns",
+  );
+  assertPositiveNumber(
+    config.concurrency.max_sessions,
+    "concurrency.max_sessions",
+  );
 
   const stat = statSync(filePath);
 
