@@ -227,9 +227,10 @@ export class Orchestrator {
           if (stillActive) {
             this.updateRunStatus(issue.number, "waiting_continuation");
             log.info({ nextTurn: turn + 1 }, "Scheduling continuation turn");
-            this.state.running.delete(issue.number);
+            // Keep in running map to prevent re-dispatch during delay
 
             setTimeout(() => {
+              this.state.running.delete(issue.number);
               this.dispatch(issue, attempt, turn + 1, result.sessionId);
             }, CONTINUATION_DELAY_MS);
             return;
