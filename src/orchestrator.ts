@@ -11,6 +11,7 @@ import { loadWorkflow, renderPrompt } from "./config.js";
 import { fetchIssues, isBlocked, isIssueActive } from "./github.js";
 import { createWorkspace, cleanupWorkspace, workspacePath } from "./workspace.js";
 import { runAgent } from "./agent.js";
+import { execFileSync } from "child_process";
 import { logger } from "./logger.js";
 
 const MAX_BACKOFF_MS = 300_000;
@@ -23,6 +24,17 @@ export function calculateBackoff(attempt: number): number {
 
 export function shouldRetry(entry: RetryEntry): boolean {
   return entry.nextRetryAt.getTime() <= Date.now();
+}
+
+export function executeHooks(
+  commands: string[],
+  cwd: string
+): void {
+  for (const cmd of commands) {
+    const parts = cmd.split(/\s+/);
+    const [file, ...args] = parts;
+    execFileSync(file, args, { cwd, stdio: "pipe" });
+  }
 }
 
 export type EventListener = (event: OrchestratorEvent) => void;
@@ -215,6 +227,12 @@ export class Orchestrator {
         repoUrl
       );
 
+      // Execute pre_run hooks
+      if (config.hooks?.pre_run?.length) {
+        log.info("Executing pre_run hooks");
+        executeHooks(config.hooks.pre_run, wsPath);
+      }
+
       this.updateRunStatus(issue.number, "building_prompt");
       const prompt = renderPrompt(promptTemplate, {
         issue: { number: issue.number, title: issue.title, body: issue.body },
@@ -256,6 +274,12 @@ export class Orchestrator {
             }, CONTINUATION_DELAY_MS);
             return;
           }
+        }
+
+        // Execute post_run hooks
+        if (config.hooks?.post_run?.length) {
+          log.info("Executing post_run hooks");
+          executeHooks(config.hooks.post_run, run.workspace_path);
         }
 
         this.state.running.delete(issue.number);

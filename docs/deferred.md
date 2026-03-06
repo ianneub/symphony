@@ -2,11 +2,11 @@
 
 Features intentionally excluded from v1. Each section describes the feature, where it integrates, and what's needed to implement it.
 
-## Hook System
+## ~~Hook System~~ ✅ Implemented
 
 **What:** Pre- and post-workspace lifecycle scripts (e.g., run `npm install` after clone, run linting before agent starts).
 
-**Where it plugs in:** `workspace.ts` — after clone/branch creation and before agent launch. Config in `WORKFLOW.md` under a `hooks` key.
+**Where it plugs in:** `orchestrator.ts` — `pre_run` hooks execute after workspace creation and before agent launch; `post_run` hooks execute after agent completes. Config in `WORKFLOW.md` under a `hooks` key. Uses `execFileSync` for safety.
 
 **Spec reference:** `hooks` front matter key with `pre_run` and `post_run` commands.
 
