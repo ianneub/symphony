@@ -1,7 +1,7 @@
 ---
 github:
-  owner: your-org
-  repo: your-repo
+  owner: ianneub
+  repo: symphony
   label: agent
 polling:
   interval_seconds: 30
@@ -27,5 +27,6 @@ You are working on issue #{{issue.number}}: {{issue.title}}
 3. Make the necessary changes to address the issue.
 4. Commit your changes with a clear commit message.
 5. Push your branch and open a pull request.
+6. When your work is complete, remove the `agent` label from the issue by running: `gh issue edit {{issue.number}} --remove-label agent`
 
 This is attempt {{attempt}}, continuation turn {{turn}}.
