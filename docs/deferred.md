@@ -18,10 +18,10 @@ Features intentionally excluded from v1. Each section describes the feature, whe
 
 **Spec reference:** Aggregate token usage tracking in orchestrator state, rate limit checks during dispatch.
 
-## `$VAR` Environment Indirection in Config
+## `$VAR` Environment Indirection in Config — ✅ Implemented
 
 **What:** Allow `WORKFLOW.md` config values to reference environment variables (e.g., `root: $WORKSPACE_ROOT`), resolved at parse time.
 
-**Where it plugs in:** `config.ts` — during YAML parsing, detect `$VAR` patterns and substitute with `process.env[VAR]`.
+**Where it plugs in:** `config.ts` — after YAML parsing, the `resolveEnvVars` helper walks all string values and replaces `$VAR` patterns with `process.env[VAR]`. Throws a clear error if a referenced variable is not set.
 
 **Spec reference:** Config layer supports `$VAR` indirection for secret handling and deployment flexibility.

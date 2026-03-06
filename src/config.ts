@@ -16,6 +16,35 @@ export interface WorkflowLoadResult {
   lastModified: number;
 }
 
+/**
+ * Recursively walk an object and replace $VAR patterns in string values
+ * with the corresponding process.env[VAR]. Throws if the env var is not set.
+ */
+export function resolveEnvVars<T>(obj: T): T {
+  if (typeof obj === "string") {
+    return obj.replace(/\$([A-Za-z_][A-Za-z0-9_]*)/g, (_match, varName: string) => {
+      const value = process.env[varName];
+      if (value === undefined) {
+        throw new Error(
+          `Environment variable "${varName}" is referenced in config but is not set`
+        );
+      }
+      return value;
+    }) as unknown as T;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map((item) => resolveEnvVars(item)) as unknown as T;
+  }
+  if (obj !== null && typeof obj === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = resolveEnvVars(value);
+    }
+    return result as T;
+  }
+  return obj;
+}
+
 export function loadWorkflow(filePath: string): WorkflowLoadResult {
   const raw = readFileSync(filePath, "utf-8");
   const { data, content } = matter(raw);
@@ -24,7 +53,7 @@ export function loadWorkflow(filePath: string): WorkflowLoadResult {
     throw new Error("WORKFLOW.md must specify github.owner and github.repo");
   }
 
-  const config: WorkflowConfig = {
+  const config: WorkflowConfig = resolveEnvVars({
     github: {
       owner: data.github.owner,
       repo: data.github.repo,
@@ -48,7 +77,7 @@ export function loadWorkflow(filePath: string): WorkflowLoadResult {
       max_sessions:
         data.concurrency?.max_sessions ?? DEFAULTS.concurrency.max_sessions,
     },
-  };
+  });
 
   const stat = statSync(filePath);
 
