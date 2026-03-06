@@ -81,6 +81,13 @@ export interface CompletedRun {
   finished_at: Date;
 }
 
+export interface TokenUsage {
+  input_tokens?: number;
+  output_tokens?: number;
+  cache_creation_input_tokens?: number;
+  cache_read_input_tokens?: number;
+}
+
 export type OrchestratorEvent =
   | { type: "run_started"; issue: Issue; attempt: number }
   | { type: "run_status_changed"; issueNumber: number; status: RunStatus }
@@ -88,4 +95,7 @@ export type OrchestratorEvent =
   | { type: "run_failed"; issueNumber: number; error: string }
   | { type: "retry_scheduled"; issueNumber: number; nextRetryAt: Date }
   | { type: "config_reloaded" }
-  | { type: "poll_completed"; issueCount: number };
+  | { type: "poll_completed"; issueCount: number }
+  | { type: "agent_session_init"; sessionId: string }
+  | { type: "agent_message"; sessionId?: string; messageType: string }
+  | { type: "agent_token_usage"; sessionId?: string; usage: TokenUsage };

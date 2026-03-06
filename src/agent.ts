@@ -1,5 +1,5 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import type { OrchestratorEvent } from "./types.js";
+import type { OrchestratorEvent, TokenUsage } from "./types.js";
 import { logger } from "./logger.js";
 
 export interface AgentOptions {
@@ -62,6 +62,24 @@ export async function runAgent(
       ) {
         sessionId = (message as any).session_id;
         log.info({ sessionId }, "Agent session started");
+        onEvent?.({ type: "agent_session_init", sessionId: sessionId! });
+      }
+
+      // Emit a generic message event for each message type
+      onEvent?.({
+        type: "agent_message",
+        sessionId,
+        messageType: message.type,
+      });
+
+      // Emit token usage when available
+      const usage = (message as any).usage as TokenUsage | undefined;
+      if (usage && (usage.input_tokens || usage.output_tokens)) {
+        onEvent?.({
+          type: "agent_token_usage",
+          sessionId,
+          usage,
+        });
       }
 
       if ("result" in message) {
