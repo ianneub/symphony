@@ -1,4 +1,5 @@
 import { Octokit } from "octokit";
+import type { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 import type { Issue, BlockingIssue } from "./types.js";
 import { logger } from "./logger.js";
 
@@ -8,8 +9,30 @@ export function initGitHub(token?: string) {
   octokit = new Octokit({ auth: token ?? process.env.GITHUB_TOKEN });
 }
 
+/** A single issue item from the REST list-for-repo response. */
+type GitHubRestIssue =
+  RestEndpointMethodTypes["issues"]["listForRepo"]["response"]["data"][number];
+
+/** Label shape returned by the REST API – may be a string or an object. */
+type IssueLabel = string | { name?: string | undefined };
+
+/** Typed shape for the GraphQL blockedBy query response. */
+interface BlockedByGraphQLResponse {
+  repository: {
+    issue: {
+      blockedBy: {
+        nodes: Array<{
+          number: number;
+          title: string;
+          state: string;
+        }>;
+      };
+    };
+  };
+}
+
 export function normalizeIssue(
-  raw: Record<string, any>,
+  raw: GitHubRestIssue,
   blockedBy: BlockingIssue[]
 ): Issue {
   return {
@@ -17,8 +40,8 @@ export function normalizeIssue(
     number: raw.number,
     title: raw.title,
     body: raw.body ?? "",
-    labels: (raw.labels ?? []).map((l: any) =>
-      typeof l === "string" ? l : l.name
+    labels: (raw.labels ?? []).map((l: IssueLabel) =>
+      typeof l === "string" ? l : l.name ?? ""
     ),
     state: raw.state as "open" | "closed",
     url: raw.html_url,
@@ -58,7 +81,7 @@ export async function fetchIssues(
   const blockedByMap = await fetchBlockedBy(owner, repo, issueNumbers);
 
   const issues = issuesOnly.map((raw) =>
-    normalizeIssue(raw as any, blockedByMap.get(raw.number) ?? [])
+    normalizeIssue(raw, blockedByMap.get(raw.number) ?? [])
   );
 
   log.info({ count: issues.length }, "Fetched issues from GitHub");
@@ -74,7 +97,7 @@ async function fetchBlockedBy(
 
   for (const num of issueNumbers) {
     try {
-      const response: any = await octokit.graphql(
+      const response = await octokit.graphql<BlockedByGraphQLResponse>(
         `query($owner: String!, $repo: String!, $number: Int!) {
           repository(owner: $owner, name: $repo) {
             issue(number: $number) {
@@ -94,7 +117,7 @@ async function fetchBlockedBy(
       const nodes = response.repository.issue.blockedBy.nodes ?? [];
       result.set(
         num,
-        nodes.map((n: any) => ({
+        nodes.map((n) => ({
           number: n.number,
           title: n.title,
           state: n.state,
@@ -124,8 +147,8 @@ export async function isIssueActive(
 
     if (data.state !== "open") return false;
 
-    const labels = (data.labels ?? []).map((l: any) =>
-      typeof l === "string" ? l : l.name
+    const labels = (data.labels ?? []).map((l: IssueLabel) =>
+      typeof l === "string" ? l : l.name ?? ""
     );
     return labels.includes(label);
   } catch {
