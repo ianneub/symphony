@@ -37,6 +37,36 @@ describe("loadWorkflow", () => {
       loadWorkflow(resolve(__dirname, "fixtures/invalid-workflow.md"))
     ).toThrow();
   });
+
+  it("throws on negative numeric values", () => {
+    expect(() =>
+      loadWorkflow(resolve(__dirname, "fixtures/negative-numbers-workflow.md"))
+    ).toThrow("polling.interval_seconds must be a positive number");
+  });
+
+  it("throws on wrong type for numeric field", () => {
+    expect(() =>
+      loadWorkflow(resolve(__dirname, "fixtures/wrong-types-workflow.md"))
+    ).toThrow("polling.interval_seconds must be a positive number");
+  });
+
+  it("throws on empty github.label", () => {
+    expect(() =>
+      loadWorkflow(resolve(__dirname, "fixtures/empty-label-workflow.md"))
+    ).toThrow("github.label must be a non-empty string");
+  });
+
+  it("throws on zero max_sessions", () => {
+    expect(() =>
+      loadWorkflow(resolve(__dirname, "fixtures/zero-sessions-workflow.md"))
+    ).toThrow("concurrency.max_sessions must be a positive number");
+  });
+
+  it("throws on whitespace-only workspace.root", () => {
+    expect(() =>
+      loadWorkflow(resolve(__dirname, "fixtures/empty-root-workflow.md"))
+    ).toThrow("workspace.root must be a non-empty string");
+  });
 });
 
 describe("renderPrompt", () => {
