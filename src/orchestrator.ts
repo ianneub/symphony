@@ -126,6 +126,10 @@ export class Orchestrator {
       const eligible = issues.filter((issue) => {
         if (this.state.running.has(issue.number)) return false;
         if (this.state.retryQueue.has(issue.number)) return false;
+        if (this.isCompleted(issue.number)) {
+          log.debug({ issue: issue.number }, "Issue already completed, skipping");
+          return false;
+        }
         if (isBlocked(issue)) {
           log.debug({ issue: issue.number }, "Issue is blocked, skipping");
           return false;
@@ -298,6 +302,12 @@ export class Orchestrator {
       run.status = status;
       this.emit({ type: "run_status_changed", issueNumber, status });
     }
+  }
+
+  private isCompleted(issueNumber: number): boolean {
+    return this.state.completedRuns.some(
+      (run) => run.issue.number === issueNumber && run.status === "completed"
+    );
   }
 
   private addCompletedRun(
